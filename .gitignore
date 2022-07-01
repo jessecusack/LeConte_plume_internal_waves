@@ -1,0 +1,23 @@
+# macOS
+.DS_Store
+
+# Generated datasets
+data/bathy.mat
+data/MD.mat
+data/MN.mat
+data/MN_band_pass_w.nc
+data/MD_band_pass_w.nc
+
+# Jupyter notebooks
+.ipynb_checkpoints
+
+# MATLAB
+*.m~
+matlab_toolboxes/
+!matlab_toolboxes/get_toolboxes.sh
+
+# Python
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class

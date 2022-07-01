@@ -1,0 +1,23 @@
+name: lciw
+channels:
+  - conda-forge
+dependencies:
+  - python=3.10.*
+  - jupytext
+  - ipykernel
+  - matplotlib=3.5.*
+  - cartopy
+  - numpy=1.22.* 
+  - pandas
+  - scipy=1.8.*
+  - xarray=2022.3.*
+  - netcdf4 
+  - dask
+  - gsw
+  - pip
+  - munch
+  - xskillscore
+  - tqdm
+  - pip:
+    - "git+https://github.com/jessecusack/jcpy"
+    - "git+https://github.com/jessecusack/pytg"
