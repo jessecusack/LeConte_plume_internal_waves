@@ -138,7 +138,7 @@ axs[2].set_xlabel("Wavelength [m]")
 axs[0].set_ylabel("Depth [m]")
 axs[-1].set_ylabel("Period [min]")
 
-axs[1].legend(loc=(-0.3, 1.05), ncol=2, fontsize=8)
+axs[1].legend(loc=(-1.4, 1.05), ncol=2, fontsize=8)
 
 for ax in axs[:-1]:
     ax.set_ylim(180, 0)
@@ -154,14 +154,20 @@ axs[-1].annotate("Period of energy peak", (400, 11), color="k", fontsize=8)
 
 axs[-1].annotate("High-frequency\nwave band", (880, 22), color="gray", fontsize=8)
 
-pos = axs[0].get_position()
-fig.text(pos.x0 - 0.07, pos.y1 - 0.03, "A", fontsize=13)
-pos = axs[1].get_position()
-fig.text(pos.x0 - 0.04, pos.y1 - 0.03, "B", fontsize=13)
-pos = axs[2].get_position()
-fig.text(pos.x0 - 0.04, pos.y1 - 0.03, "C", fontsize=13)
+# pos = axs[0].get_position()
+# fig.text(pos.x0 - 0.07, pos.y1 - 0.03, "A", fontsize=13)
+# pos = axs[1].get_position()
+# fig.text(pos.x0 - 0.04, pos.y1 - 0.03, "B", fontsize=13)
+# pos = axs[2].get_position()
+# fig.text(pos.x0 - 0.04, pos.y1 - 0.03, "C", fontsize=13)
 
 fig.align_xlabels(axs)
 
+axs[0].text(0.1, 0.9, "A", fontsize=13, ha='center', va='center', transform=axs[0].transAxes)
+axs[1].text(0.1, 0.9, "B", fontsize=13, ha='center', va='center', transform=axs[1].transAxes)
+axs[2].text(0.1, 0.9, "C", fontsize=13, ha='center', va='center', transform=axs[2].transAxes)
+
 fig.savefig("../figures/TG.pdf", dpi=300, bbox_inches="tight", pad_inches=0)
 fig.savefig("../figures/TG.png", dpi=300, bbox_inches="tight", pad_inches=0)
+
+# %%

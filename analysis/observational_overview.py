@@ -177,3 +177,48 @@ scale_bar(ax, proj, 5, location=(0.4, 0.2), rotate=44.5)
 
 fig.savefig("../figures/complex_map.pdf", dpi=300, bbox_inches="tight", pad_inches=0)
 fig.savefig("../figures/complex_map.png", dpi=300, bbox_inches="tight", pad_inches=0)
+
+# %% [markdown]
+# # Mooring diagrams
+
+# %%
+fig, ax = plt.subplots(figsize=(6, 3))
+ax.set_ylim(200, 0)
+ax.set_aspect("equal")
+ax.set_xticks([])
+
+MN = AS
+MD = DD
+
+# MN
+xMN = +120
+
+# ax.fill_betweenx(MN.depth, xMN - np.cos(np.deg2rad(MN.beamAngle))*MN.distance, xMN + np.cos(np.deg2rad(MN.beamAngle))*MN.distance, color="gray")
+ax.plot(xMN - np.cos(np.deg2rad(MN.beamAngle))*MN.distance, MN.depth, color="k", ls=(0, (1, 1)), lw=5)
+ax.plot(xMN + np.cos(np.deg2rad(MN.beamAngle))*MN.distance, MN.depth, color="k", ls=(0, (1, 1)), lw=5)
+ax.plot(np.full_like(MN.depth, xMN), MN.depth, color="k", ls=(0, (1, 1)), lw=5)
+ax.plot([xMN, xMN], [200, MN.depth[0]], 'k', lw=2)
+ax.plot(xMN, MN.depth[0] + 8, marker="o", ms=15, ls="", color="y", markeredgecolor="k")
+ax.plot(xMN, MN.depth[0], marker="^", ms=10, ls="", color="r", markeredgecolor="k")
+
+# MD
+xMD = -120
+beam_angle = 20
+
+ax.plot(xMD - np.cos(np.deg2rad(beam_angle))*MD.distance, MD.depth_adcp, color="k", lw=5, ls=(0, (1, 1)), label="beam")
+ax.plot(xMD + np.cos(np.deg2rad(beam_angle))*MD.distance, MD.depth_adcp, color="k", lw=5, ls=(0, (1, 1)))
+ax.plot([xMD, xMD], [200, MD.depth_instrument[0]], 'k', lw=2)
+ax.plot(xMD, MD.depth_instrument[0], marker="o", ms=8, ls="", color="y", markeredgecolor="k")
+ax.plot(xMD, MD.depth_instrument[2], marker="o", ms=15, ls="", color="y", markeredgecolor="k")
+ax.plot(xMD, MD.depth_instrument[2] - 8, marker="^", ms=10, ls="", color="r", markeredgecolor="k")
+ax.plot(xMD, MD.depth_instrument[3] + 8, marker="v", ms=10, ls="", color="r", markeredgecolor="k", label="ADCP")
+# ax.fill_betweenx(MD.depth_adcp, xMD - np.cos(np.deg2rad(beam_angle))*MD.distance, xMD + np.cos(np.deg2rad(beam_angle))*MD.distance, color="gray")
+
+ax.set_xticks([xMN, xMD])
+ax.set_xticklabels(["MN", "MD"])
+ax.set_ylabel("Depth [m]")
+
+ax.legend()
+
+fig.savefig("../figures/mooring_diagrams.pdf", dpi=600, bbox_inches="tight", pad_inches=0.01)
+fig.savefig("../figures/mooring_diagrams.png", dpi=600, bbox_inches="tight", pad_inches=0.01)

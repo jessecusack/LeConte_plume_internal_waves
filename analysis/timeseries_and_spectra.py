@@ -22,6 +22,18 @@ import numpy as np
 import xarray as xr
 import matplotlib.pyplot as plt
 
+SMALL_SIZE = 7
+MEDIUM_SIZE = 8
+BIGGER_SIZE = 10
+
+plt.rc('font', size=SMALL_SIZE)          # controls default text sizes
+plt.rc('axes', titlesize=SMALL_SIZE)     # fontsize of the axes title
+plt.rc('axes', labelsize=MEDIUM_SIZE)    # fontsize of the x and y labels
+plt.rc('xtick', labelsize=SMALL_SIZE)    # fontsize of the tick labels
+plt.rc('ytick', labelsize=SMALL_SIZE)    # fontsize of the tick labels
+plt.rc('legend', fontsize=SMALL_SIZE)    # legend fontsize
+plt.rc('figure', titlesize=BIGGER_SIZE)  # fontsize of the figure title
+
 # %% [markdown]
 # Load required data.
 
@@ -171,13 +183,13 @@ from scipy import stats
 
 # %%
 # PARAMETERS
-tslice = slice(3600, None)  # Time slice form simulation, 3600 s and onwards
+tslice = slice(3600, None)  # Time slice from simulation, 1800 s and onwards
 conf = 0.95  # Error bar limits
 dmin = 30.  # Depth min, max to average over
-dmax = 100.
+dmax = 60.
 # Spectral parameters
 nperseg = 2**11  # 2**9 is about 1.5 hours for a time step of 10 seconds
-nperseg_les = 64
+nperseg_les = 2**6
 window = "hann"
 scaling = "density"
 max_gap = np.timedelta64(180, 's') # For interpolating NaN gaps
@@ -185,7 +197,7 @@ max_gap = np.timedelta64(180, 's') # For interpolating NaN gaps
 # PREP DATA
 alpha = 1 - conf
 fs = 86400./(DD.time[1] - DD.time[0]).data.astype("timedelta64[s]").astype(float) # in cpd
-fs_les = 86400./30.  # Only true after the first hour!! Before that it is 60 s time step.
+fs_les = 86400./30.  # Only true after the first 1800 seconds!! Before that it is 60 s time step.
 
 # Extract the right time and depth slice of LES
 DDles_ = DDles.sel(time=tslice).sel(zu=slice(dmax, dmin))
@@ -201,9 +213,8 @@ AS_ = AS.isel(distance=use)
 # _, _, Svv = spectrogram(DD_.v.interpolate_na(dim="time", max_gap=max_gap), fs, window, nperseg, scaling=scaling, axis=0)
 freqs, time, Sww = spectrogram(DD_.w.interpolate_na(dim="time", max_gap=max_gap), fs, window, nperseg, scaling=scaling, axis=0)
 SKE_DD = 0.5*Sww # 0.5*(Suu + Svv + Sww)
-KE_DD_depth_average = np.nanmean(SKE_DD, axis=1)  # Depth average
-EDOF = np.isfinite(KE_DD_depth_average).all(axis=0).sum() - 1
-KE_DD = np.nanmean(KE_DD_depth_average, axis=-1)  # Time average
+KE_DD = np.nanmean(np.nanmean(SKE_DD, axis=2), axis=1)  # Average first over time then over depth
+EDOF = time.size - 1
 
 cl_DD = 2*EDOF / stats.chi2.ppf(conf + alpha / 2, 2*EDOF)
 cu_DD = 2*EDOF / stats.chi2.ppf(alpha / 2, 2*EDOF)
@@ -212,8 +223,9 @@ cu_DD = 2*EDOF / stats.chi2.ppf(alpha / 2, 2*EDOF)
 # _, _, Svv = spectrogram(DDles_.v, fs_les, window, nperseg=nperseg_les, scaling=scaling, axis=0)
 freqs_les, time, Sww = spectrogram(DDles_.w, fs_les, window, nperseg=nperseg_les, scaling=scaling, axis=0)
 SKEles = 0.5*Sww #0.5*(Suu + Svv + Sww)
-KE_DD_les = SKEles.mean(axis=(1, 2))  # Depth and time average
+KE_DD_les = np.nanmean(np.nanmean(SKEles, axis=2), axis=1)  # Average first over time then over depth
 EDOF_les = time.size - 1
+
 cl_les = 2*EDOF_les / stats.chi2.ppf(conf + alpha / 2, 2*EDOF_les)
 cu_les = 2*EDOF_les / stats.chi2.ppf(alpha / 2, 2*EDOF_les)
 
@@ -221,9 +233,12 @@ cu_les = 2*EDOF_les / stats.chi2.ppf(alpha / 2, 2*EDOF_les)
 # _, _, Svv = spectrogram(AS_.v.interpolate_na(dim="time", max_gap=max_gap), fs, window, nperseg, scaling=scaling, axis=0)
 freqs, time, Sww = spectrogram(AS_.vv.interpolate_na(dim="time", max_gap=max_gap), fs, window, nperseg, scaling=scaling, axis=0)
 SKE_AS = 0.5*Sww # 0.5*(Suu + Svv + Sww)
-KE_AS_depth_average = np.nanmean(SKE_AS, axis=1)  # Depth average
-EDOF = np.isfinite(KE_AS_depth_average).all(axis=0).sum() - 1
-KE_AS = np.nanmean(KE_AS_depth_average, axis=-1)  # Time average
+KE_AS = np.nanmean(np.nanmean(SKE_AS, axis=2), axis=1)  # Average first over time then over depth
+EDOF = time.size - 1
+
+# KE_AS_depth_average = np.nanmean(SKE_AS, axis=1)  # Depth average
+# EDOF = np.isfinite(KE_AS_depth_average).all(axis=0).sum() - 1
+# KE_AS = np.nanmean(KE_AS_depth_average, axis=-1)  # Time average
 
 cl_AS = 2*EDOF / stats.chi2.ppf(conf + alpha / 2, 2*EDOF)
 cu_AS = 2*EDOF / stats.chi2.ppf(alpha / 2, 2*EDOF)
@@ -231,11 +246,11 @@ cu_AS = 2*EDOF / stats.chi2.ppf(alpha / 2, 2*EDOF)
 # _, _, Suu = spectrogram(ASles_.u, fs_les, window, nperseg=nperseg_les, scaling=scaling, axis=0)
 # _, _, Svv = spectrogram(ASles_.v, fs_les, window, nperseg=nperseg_les, scaling=scaling, axis=0)
 freqs_les, time, Sww = spectrogram(ASles_.w, fs_les, window, nperseg=nperseg_les, scaling=scaling, axis=0)
-SKEles = 0.5*Sww # 0.5*(Suu + Svv + Sww)
-KE_AS_les = SKEles.mean(axis=(1, 2))  # Depth and time average
+SKEles = 0.5*Sww #0.5*(Suu + Svv + Sww)
+KE_AS_les = np.nanmean(np.nanmean(SKEles, axis=2), axis=1)  # Average first over time then over depth
 
 # MAKE PLOT
-fig, ax = plt.subplots(1, 1, sharex=True, figsize=(1.5, 2))
+fig, ax = plt.subplots(1, 1, sharex=True, figsize=(2.5, 2))
 
 ax.loglog(freqs_les[1:], KE_AS_les[1:], "C3--", label="LES MN")
 ax.fill_between(freqs_les[1:], cl_les*KE_AS_les[1:], cu_les*KE_AS_les[1:], color="C3", alpha=0.2)
@@ -250,13 +265,13 @@ ax.loglog(freqs[1:], KE_DD[1:], "C4", label="MD")
 ax.fill_between(freqs[1:], cl_DD*KE_DD[1:], cu_DD*KE_DD[1:], color="C4", alpha=0.2)
 
 ax.set_xlim(1e1, 1e3)
-ax.set_ylim(1e-7, 1e-5)
+ax.set_ylim(1e-7, 2e-5)
 
 ax.set_xticks([10, 100, 1000])
 ax.set_xticklabels(["10", "100", "1000"])
 
 ax.set_xlabel("Frequency [cpd]")
-ax.legend(loc="upper left", ncol=2, fontsize=6)
+ax.legend(loc="upper left", ncol=2)
 ax.set_ylabel("VKE [m$^2$ s$^{-2}$ cpd$^{-1}$]", labelpad=-2)
 
 secax = ax.secondary_xaxis('top', functions=(lambda x: 1440/x, lambda x: 1440/x))

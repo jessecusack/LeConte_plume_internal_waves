@@ -19,6 +19,7 @@
 # %%
 import xarray as xr
 import numpy as np
+import matplotlib
 import matplotlib.pyplot as plt
 import jcpy.signal as jsig
 from matplotlib.dates import DateFormatter
@@ -32,6 +33,17 @@ import xskillscore as xs
 def interval_to_mid(intervals):
     return np.array([v.mid for v in intervals])
 
+SMALL_SIZE = 7
+MEDIUM_SIZE = 8
+BIGGER_SIZE = 10
+
+plt.rc('font', size=SMALL_SIZE)          # controls default text sizes
+plt.rc('axes', titlesize=SMALL_SIZE)     # fontsize of the axes title
+plt.rc('axes', labelsize=MEDIUM_SIZE)    # fontsize of the x and y labels
+plt.rc('xtick', labelsize=SMALL_SIZE)    # fontsize of the tick labels
+plt.rc('ytick', labelsize=SMALL_SIZE)    # fontsize of the tick labels
+plt.rc('legend', fontsize=SMALL_SIZE)    # legend fontsize
+plt.rc('figure', titlesize=BIGGER_SIZE)  # fontsize of the figure title
 
 # %% [markdown]
 # Load datasets.
@@ -317,7 +329,7 @@ print(f"KE wave mean {KEb_mean.mean():.2e} J kg-1")
 print(f"KE std mean {KEb_mean.std():.2e} J kg-1")
 print(f"KE frac mean {KE_frac.mean():.2%}")
 print(f"KE frac std {KE_frac.std():.2%}")
-print(f"KE frac 90% error {2*KE_frac.std():.2%}")
+print(f"KE frac 95% error {2*KE_frac.std():.2%}")
 
 # %% [markdown]
 # Error on energy fraction for times when the plume is not over the mooring.
@@ -367,39 +379,78 @@ rand_seed = 9885333
 nsamples = 5000
 nit = 100
 
-spdl = np.sqrt(vl**2)
-spdtot = np.sqrt((vb + vl)**2 + wb**2)
+spdnl = np.sqrt(vl**2)
+spdl = np.sqrt(ul**2 + vl**2)
+spdntot = np.sqrt((vb + vl)**2 + wb**2)
+spdtot = np.sqrt((ub + ul)**2 + (vb + vl)**2 + wb**2)
 spdlm = spdl.mean("time")
 spdtotm = spdtot.mean("time")
+spdnlm = spdnl.mean("time")
+spdntotm = spdntot.mean("time")
 
 np.random.seed(rand_seed)
 spdl_rs = xs.resample_iterations_idx(spdl, nit, dim="time", dim_max=nsamples).mean("time")
 np.random.seed(rand_seed)
 spdtot_rs = xs.resample_iterations_idx(spdtot, nit, dim="time", dim_max=nsamples).mean("time")
+np.random.seed(rand_seed)
+spdnl_rs = xs.resample_iterations_idx(spdnl, nit, dim="time", dim_max=nsamples).mean("time")
+np.random.seed(rand_seed)
+spdntot_rs = xs.resample_iterations_idx(spdntot, nit, dim="time", dim_max=nsamples).mean("time")
 
 pctl = np.percentile(spdl_rs, [5, 95], axis=1)
 pcttot = np.percentile(spdtot_rs, [5, 95], axis=1)
 pct_ratio = np.percentile((100*(spdtot_rs/spdl_rs - 1)), [5, 95], axis=1) 
 
-# %%
-fig, axs = plt.subplots(1, 2, sharey=True, figsize=(2, 2), gridspec_kw=dict(width_ratios=[2, 1.25]))
-axs[0].plot(spdlm*100, spdl.depth, label="low freq")
-axs[0].fill_betweenx(spdl.depth, pctl[0, :]*100, pctl[1, :]*100, color="C0", alpha=0.2)
-axs[0].plot(spdtotm*100, spdl.depth, "k", label="low freq + wave")
-axs[0].fill_betweenx(spdl.depth, pcttot[0, :]*100, pcttot[1, :]*100, color="k", alpha=0.2)
+pctnl = np.percentile(spdnl_rs, [5, 95], axis=1)
+pctntot = np.percentile(spdntot_rs, [5, 95], axis=1)
+pctn_ratio = np.percentile((100*(spdntot_rs/spdnl_rs - 1)), [5, 95], axis=1) 
 
-axs[0].invert_yaxis()
-axs[1].plot((spdtotm/spdlm - 1)*100, spdtot.depth, "k")
+# %%
+lfls = ":"
+
+fig, axs = plt.subplots(1, 2, figsize=(3, 2), gridspec_kw=dict(width_ratios=[2, 1.5]))
+for ax in axs:
+    ax.yaxis.set_label_position("right")
+    ax.yaxis.tick_right()
+    ax.invert_yaxis()
+
+# North and East
+col = "C0"
+axs[0].plot(spdlm*100, spdl.depth, col, ls=lfls, label="low freq")
+axs[0].fill_betweenx(spdl.depth, pctl[0, :]*100, pctl[1, :]*100, color=col, alpha=0.2)
+axs[0].plot(spdtotm*100, spdl.depth, col, label="total")
+axs[0].fill_betweenx(spdl.depth, pcttot[0, :]*100, pcttot[1, :]*100, color=col, alpha=0.2)
+change = (spdtotm/spdlm - 1)*100
+axs[1].plot(change, spdtot.depth, col)
 axs[1].fill_betweenx(spdl.depth, pct_ratio[0, :], pct_ratio[1, :], color="k", alpha=0.2)
 
-axs[0].set_xlabel("Speed\n[cm s$^{-1}$]")#, fontsize=fontsize)
-axs[1].set_xlabel("Increase in\nmelt rate [%]")#, fontsize=fontsize)
-axs[0].set_ylabel("Depth [m]")#, fontsize=fontsize)
+# North
+col = "C1"
+axs[0].plot(spdnlm*100, spdnl.depth, col, ls=lfls, label="low freq (exc. u)")
+axs[0].fill_betweenx(spdnl.depth, pctnl[0, :]*100, pctnl[1, :]*100, color=col, alpha=0.2)
+axs[0].plot(spdntotm*100, spdnl.depth, col, label="total (exc. u)")
+axs[0].fill_betweenx(spdnl.depth, pctntot[0, :]*100, pctntot[1, :]*100, color=col, alpha=0.2)
+changen = (spdntotm/spdnlm - 1)*100
+axs[1].plot(changen, spdntot.depth, col)
+axs[1].fill_betweenx(spdnl.depth, pctn_ratio[0, :], pctn_ratio[1, :], color=col, alpha=0.2)
 
-axs[0].legend(ncol=2, loc=(-0.3, 1.03), fontsize=7)
+axs[0].set_yticklabels([])
+axs[0].set_xlabel(r"$|\bf{u}|$ [cm s$^{-1}$]")#, fontsize=fontsize)
+axs[1].set_xlabel("Melt rate\nchange [%]")#, fontsize=fontsize)
+axs[1].set_ylabel("Depth [m]")#, fontsize=fontsize)
 
+axs[0].legend(ncol=2, loc=(-0.0, 1.03), fontsize=7)
+
+axs[0].text(0.1, 0.9, "A", fontsize=13, ha='center', va='center', transform=axs[0].transAxes)
+axs[1].text(0.1, 0.9, "B", fontsize=13, ha='center', va='center', transform=axs[1].transAxes)
+
+ax.text
 fig.savefig("../figures/melting2.pdf", dpi=300, bbox_inches="tight", pad_inches=0.01)
 fig.savefig("../figures/melting2.png", dpi=300, bbox_inches="tight", pad_inches=0.01)
+
+# %%
+print(f"Max change (north only): {changen.max().data}")
+print(f"Max change: {change.max().data}")
 
 # %% [markdown]
 # ## Correlations with discharge
@@ -407,6 +458,7 @@ fig.savefig("../figures/melting2.png", dpi=300, bbox_inches="tight", pad_inches=
 # %%
 min_good_frac = 0.9
 nhours = 24
+nmin = 10
 time_resample = f"{nhours}H"
 
 dmin = 30
@@ -431,6 +483,10 @@ KEb_ave = (KEb.sum("distance")/ngood).where(good)
 KEl_re = KEl_ave.resample(time=time_resample, skipna=True).mean()
 KEb_re = KEb_ave.resample(time=time_resample, skipna=True).mean()
 
+# Scale the standard deviation by the sqrt of number of samples in each window to estimate the standard error on the mean
+KEl_re_std = KEl_ave.resample(time=f"{nmin}Min", skipna=True).mean().resample(time=time_resample, skipna=True).std()/np.sqrt(60*nhours/nmin)
+KEb_re_std = KEb_ave.resample(time=f"{nmin}Min", skipna=True).mean().resample(time=time_resample, skipna=True).std()/np.sqrt(60*nhours/nmin)
+
 time_bins = np.hstack((KEb_re.time, KEb_re.time[-1] + np.timedelta64(nhours, "h"))) - np.timedelta64(30*nhours, "m")
 
 SMBb = SMB.groupby_bins("time", time_bins).mean()
@@ -439,17 +495,41 @@ SMBb["time_bins"] = interval_to_mid(SMBb.time_bins.values).astype("datetime64[s]
 SMBb = SMBb.rename({"time_bins": "time"})
 
 fig, ax = plt.subplots()
+ax.plot(SMBb.middle_scen, KEl_re, '.')
 ax.plot(SMBb.middle_scen, KEb_re, '.')
-
-fig, ax = plt.subplots()
-axt = ax.twinx()
-ax.semilogy(SMBb.time, SMBb.middle_scen,)
-axt.semilogy(KEl_re.time, KEl_re, '.')
-axt.semilogy(KEb_re.time, KEb_re, '.')
 
 print(f"Correlation between IW KE and discharge: {xr.corr(SMBb.middle_scen, KEb_re).data}")
 print(f"Correlation between IW KE and LF KE: {xr.corr(KEl_re, KEb_re).data}")
 print(f"Correlation between LF KE and discharge: {xr.corr(KEl_re, SMBb.middle_scen).data}")
+
+
+# %%
+import matplotlib.dates as mdates
+
+fig, ax = plt.subplots(figsize=(4, 2))
+axt = ax.twinx()
+
+axt.fill_between(SMBb.time, SMBb.low_scen, SMBb.high_scen, color="k", alpha=0.2)
+ln1 = axt.plot(SMBb.time, SMBb.middle_scen, "k", label="Discharge")
+# ln2 = axt.plot(KEl_re.time, KEl_re, '.', label="High freq KE")
+ln2 = ax.errorbar(mdates.date2num(KEl_re.time), KEl_re, yerr=2*KEl_re_std, fmt=".", ms=4, color="purple", elinewidth=1,label="Low freq KE")
+# ln3 = axt.plot(KEb_re.time, KEb_re, '.', label="High freq KE")
+ln3 = ax.errorbar(mdates.date2num(KEb_re.time), KEb_re, yerr=2*KEb_re_std, fmt=".", ms=4, color="g", elinewidth=1,label="Wave band KE")
+
+lines, labels = ax.get_legend_handles_labels()
+lines2, labels2 = axt.get_legend_handles_labels()
+ax.legend(lines + lines2, labels + labels2, ncol=2, loc=(0, 1.03), fontsize=7)
+
+date_form = DateFormatter("%d")
+ax.xaxis.set_major_formatter(date_form)
+ax.set_xlabel("Sept 2018")
+
+axt.set_ylabel("Discharge [m$^3$ s$^{-1}$]")
+ax.set_ylabel("Depth ave. KE [J kg$^{-1}$]")
+
+fig.savefig("../figures/short_term_KE_discharge.pdf", dpi=300, bbox_inches="tight", pad_inches=0.01)
+fig.savefig("../figures/short_term_KE_discharge.png", dpi=300, bbox_inches="tight", pad_inches=0.01)
+
 
 # %% [markdown]
 # Correlation between discharge and wave energy.
@@ -516,6 +596,60 @@ print(f"R mean {rvals.mean()}")
 print(f"R std {rvals.std()}")
 print(f"R^2 mean {(rvals**2).mean()}")
 print(f"R^2 std {(rvals**2).std()}")
+
+# %% [markdown]
+# Correlations between low freq KE and discharge
+
+# %%
+bootnum = 500
+np.random.seed(56642)
+
+good = np.isfinite(SMBb.middle_scen) & np.isfinite(KEl_re) #& (SMBb.middle_scen > 10)
+
+SMBr = SMBb.middle_scen[good].data
+KEr = KEl_re[good].data
+
+ndat = KEr.size
+idxs = np.arange(ndat)
+
+rvals = np.zeros((bootnum))
+pvals = np.zeros((bootnum))
+
+for i in range(bootnum):
+    idxs_ = np.random.choice(idxs, ndat)
+    rvals[i], pvals[i] = stats.pearsonr(SMBr[idxs_], KEr[idxs_])
+
+fig, ax = plt.subplots()
+_ = ax.hist(rvals)
+
+fig, ax = plt.subplots()
+_ = ax.hist(rvals**2)
+
+print(f"R mean {rvals.mean()}")
+print(f"R std {rvals.std()}")
+print(f"R^2 mean {(rvals**2).mean()}")
+print(f"R^2 std {(rvals**2).std()}")
+
+# %% [markdown]
+# Lag correlation
+
+# %%
+lag = 3
+mode = "same"
+
+from scipy.signal import correlate, correlation_lags
+
+out = correlate(SMBb.middle_scen.data, KEb_re.data, mode=mode)
+lags = correlation_lags(SMBb.middle_scen.data.size, KEb_re.data.size, mode=mode)
+
+fig, ax = plt.subplots()
+ax.plot(lags, out/out[out.size//2])
+
+print(f"Lag {lag} correlation between IW KE and discharge: {xr.corr(SMBb.middle_scen[:-lag], KEb_re[lag:]).data}")
+print(f"Lag {lag} correlation between IW KE and discharge: {xr.corr(SMBb.middle_scen[lag:], KEb_re[:-lag]).data}")
+
+# fig, ax = plt.subplots()
+ax.xcorr(SMBb.middle_scen.data, KEb_re.data)
 
 # %% [markdown]
 # ## Spectral analysis
@@ -608,7 +742,7 @@ logKE_AS = np.log10(np.nanmean(SKE_AS.real, axis=-1).T)
 
 
 use = (wl.depth_adcp > dmin) & (wl.depth_adcp < dmax)
-ax.loglog(freqs[1:], np.nanmean(10**logKE_AS[use, 1:], axis=0), label="low pass")
+ax.loglog(freqs[1:], np.nanmean(10**logKE_AS[use, 1:], axis=0), label="low pass (low)")
 
 freqs, time, Suu = spectrogram(uh, fs, window=window, nperseg=nperseg, noverlap=noverlap, scaling=scaling, axis=0)
 freqs, time, Svv = spectrogram(vh, fs, window=window, nperseg=nperseg, noverlap=noverlap, scaling=scaling, axis=0)
@@ -618,7 +752,7 @@ logKE_AS = np.log10(np.nanmean(SKE_AS.real, axis=-1).T)
 
 
 use = (wl.depth_adcp > dmin) & (wl.depth_adcp < dmax)
-ax.loglog(freqs[1:], np.nanmean(10**logKE_AS[use, 1:], axis=0), label="high pass")
+ax.loglog(freqs[1:], np.nanmean(10**logKE_AS[use, 1:], axis=0), label="low pass (high)")
 
 freqs, time, Suu = spectrogram(ub, fs, window=window, nperseg=nperseg, noverlap=noverlap, scaling=scaling, axis=0)
 freqs, time, Svv = spectrogram(vb, fs, window=window, nperseg=nperseg, noverlap=noverlap, scaling=scaling, axis=0)
