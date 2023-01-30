@@ -29,6 +29,7 @@ import os
 from scipy import stats
 from scipy.signal import spectrogram
 import xskillscore as xs
+import gsw
 
 def interval_to_mid(intervals):
     return np.array([v.mid for v in intervals])
@@ -451,6 +452,78 @@ fig.savefig("../figures/melting2.png", dpi=300, bbox_inches="tight", pad_inches=
 # %%
 print(f"Max change (north only): {changen.max().data}")
 print(f"Max change: {change.max().data}")
+
+# %% [markdown]
+# Figure with buoyancy frequency. First, load data.
+
+# %%
+dd = xr.open_dataset("../data/downstream_deep_mooring_2018.nc")
+# ctd = xr.open_dataset("../data/combo_sep_2018.nc")
+pfl = np.genfromtxt('../data/sep_2018_mean_TS_profile.csv', delimiter=',', skip_header=1)
+
+cdepth = pfl[:, 0]
+cSP = pfl[:, 1]
+ct = pfl[:, 2]
+
+cp = gsw.p_from_z(-cdepth, dd.lat.values)
+cSA = gsw.SA_from_SP(cSP, cdepth, dd.lon.values, dd.lat.values)
+cCT = gsw.CT_from_t(cSA, ct, cp)
+csig0 = gsw.pot_rho_t_exact(cSA, ct, cp, 0)
+N2, p_mid = gsw.Nsquared(cSA, cCT, cp)
+Ncpd = np.sqrt(N2)*86400/(np.pi*2)
+
+# %% [markdown]
+# Add panel to figure.
+
+# %%
+lfls = ":"
+
+fig, axs = plt.subplots(1, 3, figsize=(3, 2), gridspec_kw=dict(width_ratios=[2, 1.5, 1]))
+
+for ax in axs:
+    ax.yaxis.set_label_position("right")
+    ax.yaxis.tick_right()
+    ax.invert_yaxis()
+
+# North and East
+col = "C0"
+axs[0].plot(spdlm*100, spdl.depth, col, ls=lfls, label="low freq")
+axs[0].fill_betweenx(spdl.depth, pctl[0, :]*100, pctl[1, :]*100, color=col, alpha=0.2)
+axs[0].plot(spdtotm*100, spdl.depth, col, label="total")
+axs[0].fill_betweenx(spdl.depth, pcttot[0, :]*100, pcttot[1, :]*100, color=col, alpha=0.2)
+change = (spdtotm/spdlm - 1)*100
+axs[1].plot(change, spdtot.depth, col)
+axs[1].fill_betweenx(spdl.depth, pct_ratio[0, :], pct_ratio[1, :], color="k", alpha=0.2)
+
+# North
+col = "C1"
+axs[0].plot(spdnlm*100, spdnl.depth, col, ls=lfls, label="low freq (exc. u)")
+axs[0].fill_betweenx(spdnl.depth, pctnl[0, :]*100, pctnl[1, :]*100, color=col, alpha=0.2)
+axs[0].plot(spdntotm*100, spdnl.depth, col, label="total (exc. u)")
+axs[0].fill_betweenx(spdnl.depth, pctntot[0, :]*100, pctntot[1, :]*100, color=col, alpha=0.2)
+changen = (spdntotm/spdnlm - 1)*100
+axs[1].plot(changen, spdntot.depth, col)
+axs[1].fill_betweenx(spdnl.depth, pctn_ratio[0, :], pctn_ratio[1, :], color=col, alpha=0.2)
+
+# Stratification
+use = (p_mid < 120) & (p_mid > 20)
+axs[2].plot(Ncpd[use], p_mid[use], "k")
+
+axs[0].set_yticklabels([])
+axs[1].set_yticklabels([])
+axs[0].set_xlabel(r"$|\bf{u}|$ [cm s$^{-1}$]")#, fontsize=fontsize)
+axs[1].set_xlabel("Melt rate\nchange [%]")#, fontsize=fontsize)
+axs[2].set_ylabel("Depth [m]")#, fontsize=fontsize)
+axs[2].set_xlabel("$N$ [cpd]")
+
+axs[0].legend(ncol=2, loc=(-0.0, 1.03), fontsize=7)
+
+for i, lab in enumerate(["A", "B", "C"]):
+    axs[i].annotate(lab, (5, 100), fontsize=13, ha='center', va='center', xycoords="axes points")
+
+ax.text
+fig.savefig("../figures/melting_strat.pdf", dpi=300, bbox_inches="tight", pad_inches=0.01)
+fig.savefig("../figures/melting_strat.png", dpi=300, bbox_inches="tight", pad_inches=0.01)
 
 # %% [markdown]
 # ## Correlations with discharge
